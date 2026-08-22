@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>Ballast — a weekly ledger</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,500&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper: #E9EDE8;
+    --paper-2: #DFE4DD;
+    --card: #FBFCFA;
+    --ink: #1F2E27;
+    --ink-dim: #5B6B62;
+    --rule: #C7D0C6;
+    --load: #A85D3B;
+    --load-dim: #A85D3B33;
+    --offset: #3B6E5C;
+    --offset-dim: #3B6E5C33;
+    --danger: #9C3B34;
+    --focus: #2F6F62;
+    --radius: 14px;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{
+    background: var(--paper);
+    background-image:
+      linear-gradient(var(--paper-2) 1px, transparent 1px);
+    background-size: 100% 32px;
+    color: var(--ink);
+    font-family: 'IBM Plex Sans', sans-serif;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap{
+    max-width: 520px;
+    margin: 0 auto;
+    padding: 28px 18px 60px;
+  }
+  header{
+    margin-bottom: 22px;
+  }
+  .eyebrow{
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    margin: 0 0 4px;
+  }
+  h1{
+    font-family: 'Fraunces', serif;
+    font-weight: 600;
+    font-style: italic;
+    font-size: 40px;
+    margin: 0 0 6px;
+    letter-spacing: -0.01em;
+  }
+  .dateline{
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    color: var(--ink-dim);
+  }
+  .card{
+    background: var(--card);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    padding: 18px;
+    margin-bottom: 16px;
+  }
+  .card h2{
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    margin: 0 0 14px;
+    font-weight: 600;
+  }
+
+  /* quick log */
+  .quicklog-buttons{
+    display:flex;
+    gap: 10px;
+  }
+  button{
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-weight: 600;
+    font-size: 14px;
+    border-radius: 10px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: transform 0.06s ease, opacity 0.15s ease;
+  }
+  button:active{ transform: scale(0.97); }
+  button:focus-visible{ outline: 2px solid var(--focus); outline-offset: 2px; }
+  .btn-log{
+    flex: 1;
+    padding: 13px 10px;
+    color: #fff;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap: 7px;
+  }
+  .btn-log.load{ background: var(--load); }
+  .btn-log.offset{ background: var(--offset); }
+  .btn-log svg{ width:16px; height:16px; }
+
+  .form{
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px dashed var(--rule);
+    display: none;
+  }
+  .form.open{ display:block; }
+  .form label{
+    display:block;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--ink-dim);
+    margin: 10px 0 5px;
+  }
+  .form input[type=number], .form input[type=text], .form select, .form input[type=date]{
+    width:100%;
+    padding: 10px 11px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 15px;
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    background: #fff;
+    color: var(--ink);
+  }
+  .form input:focus, .form select:focus{ outline: 2px solid var(--focus); outline-offset: 1px; }
+  .stepper{
+    display:flex;
+    align-items:center;
+    gap: 10px;
+  }
+  .stepper button{
+    width: 38px; height: 38px;
+    font-size: 18px;
+    background: var(--paper-2);
+    color: var(--ink);
+    flex-shrink:0;
+  }
+  .stepper input{ text-align:center; }
+  .chip-row{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+  }
+  .chip{
+    padding: 8px 13px;
+    border-radius: 999px;
+    background: var(--paper-2);
+    color: var(--ink);
+    font-size: 13px;
+    font-weight: 500;
+  }
+  .chip.selected.load{ background: var(--load); color:#fff; }
+  .chip.selected.offset{ background: var(--offset); color:#fff; }
+  .form-actions{
+    display:flex;
+    gap:10px;
+    margin-top: 16px;
+  }
+  .btn-save{
+    flex:1;
+    padding: 11px;
+    color:#fff;
+  }
+  .btn-save.load{ background: var(--load); }
+  .btn-save.offset{ background: var(--offset); }
+  .btn-cancel{
+    padding: 11px 16px;
+    background: transparent;
+    color: var(--ink-dim);
+    border: 1px solid var(--rule);
+  }
+
+  /* this week */
+  .week-stats{
+    display:flex;
+    gap: 14px;
+  }
+  .stat{ flex:1; }
+  .stat .num{
+    font-family: 'Fraunces', serif;
+    font-weight: 600;
+    font-size: 30px;
+    line-height: 1;
+  }
+  .stat.load .num{ color: var(--load); }
+  .stat.offset .num{ color: var(--offset); }
+  .stat .num.over{ color: var(--danger); }
+  .stat .label{
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-dim);
+    margin-top: 4px;
+  }
+  .guideline-bar{
+    margin-top: 10px;
+    height: 6px;
+    border-radius: 3px;
+    background: var(--paper-2);
+    position: relative;
+    overflow: hidden;
+  }
+  .guideline-bar .fill{
+    height:100%;
+    background: var(--load);
+    border-radius: 3px;
+  }
+  .guideline-bar .fill.over{ background: var(--danger); }
+  .guideline-note{
+    font-size: 11px;
+    color: var(--ink-dim);
+    margin-top: 6px;
+  }
+
+  /* balance chart */
+  .balance-row{
+    display:grid;
+    grid-template-columns: 40px 1fr 6px 1fr 34px;
+    align-items:center;
+    gap: 6px;
+    height: 26px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+  }
+  .balance-row .wk-label{
+    color: var(--ink-dim);
+    text-align:right;
+  }
+  .balance-row .bar-load{
+    height: 14px;
+    background: var(--load);
+    border-radius: 3px 0 0 3px;
+    justify-self: end;
+  }
+  .balance-row .bar-offset{
+    height: 14px;
+    background: var(--offset);
+    border-radius: 0 3px 3px 0;
+  }
+  .balance-row .center-line{
+    width:1px;
+    height: 20px;
+    background: var(--rule);
+    justify-self:center;
+  }
+  .balance-row .val{
+    color: var(--ink-dim);
+    font-size: 10px;
+  }
+  .balance-row .val.load-val{ text-align:right; color: var(--load); }
+  .balance-row .val.offset-val{ text-align:left; color: var(--offset); }
+  .chart-legend{
+    display:flex;
+    gap: 18px;
+    margin-top: 14px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-dim);
+  }
+  .chart-legend span{ display:flex; align-items:center; gap:6px; }
+  .dot{ width:8px; height:8px; border-radius:50%; display:inline-block; }
+  .dot.load{ background: var(--load); }
+  .dot.offset{ background: var(--offset); }
+
+  /* log list */
+  .entry{
+    display:flex;
+    align-items:flex-start;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--rule);
+  }
+  .entry:last-child{ border-bottom:none; }
+  .entry .marker{
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    margin-top: 6px;
+    flex-shrink:0;
+  }
+  .entry .marker.load{ background: var(--load); }
+  .entry .marker.offset{ background: var(--offset); }
+  .entry .body{ flex:1; }
+  .entry .title{
+    font-size: 14px;
+    font-weight: 500;
+  }
+  .entry .meta{
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-dim);
+    margin-top: 2px;
+  }
+  .entry .del{
+    background:none;
+    border:none;
+    color: var(--ink-dim);
+    font-size: 18px;
+    line-height:1;
+    padding: 2px 6px;
+    cursor:pointer;
+  }
+  .empty{
+    text-align:center;
+    padding: 26px 10px;
+    color: var(--ink-dim);
+    font-size: 13px;
+  }
+  .empty .big{
+    font-family:'Fraunces', serif;
+    font-style: italic;
+    font-size: 20px;
+    color: var(--ink);
+    display:block;
+    margin-bottom: 6px;
+  }
+  footer{
+    text-align:center;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    color: var(--ink-dim);
+    margin-top: 20px;
+    line-height: 1.6;
+  }
+  @media (prefers-reduced-motion: reduce){
+    *{ transition:none !important; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <p class="eyebrow">A weekly ledger</p>
+    <h1>Ballast</h1>
+    <p class="dateline" id="dateline">—</p>
+  </header>
+
+  <div class="card">
+    <h2>Quick log</h2>
+    <div class="quicklog-buttons">
+      <button class="btn-log load" id="openDrink" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 3h14l-1.5 9a4 4 0 0 1-4 3.4h-3a4 4 0 0 1-4-3.4L5 3Z"/><path d="M9.5 15.4 8 21h8l-1.5-5.6"/></svg>
+        Drink
+      </button>
+      <button class="btn-log offset" id="openGym" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6.5 6.5 4 4M17.5 17.5 20 20M6.5 17.5 4 20M17.5 6.5 20 4"/><rect x="7" y="10" width="10" height="4" rx="1"/></svg>
+        Gym session
+      </button>
+    </div>
+
+    <div class="form" id="drinkForm">
+      <label for="drinkDate">Date</label>
+      <input type="date" id="drinkDate">
+      <label for="drinkUnits">Units</label>
+      <div class="stepper">
+        <button type="button" id="drinkMinus">–</button>
+        <input type="number" id="drinkUnits" min="0" step="0.5" value="2" inputmode="decimal">
+        <button type="button" id="drinkPlus">+</button>
+      </div>
+      <label for="drinkNote">Note (optional)</label>
+      <input type="text" id="drinkNote" placeholder="e.g. pints with James">
+      <div class="form-actions">
+        <button class="btn-save load" id="saveDrink" type="button">Save</button>
+        <button class="btn-cancel" id="cancelDrink" type="button">Cancel</button>
+      </div>
+    </div>
+
+    <div class="form" id="gymForm">
+      <label for="gymDate">Date</label>
+      <input type="date" id="gymDate">
+      <label>Type</label>
+      <div class="chip-row" id="gymTypeChips">
+        <button type="button" class="chip offset selected" data-val="Gym / weights">Gym / weights</button>
+        <button type="button" class="chip offset" data-val="Cardio">Cardio</button>
+        <button type="button" class="chip offset" data-val="Class">Class</button>
+        <button type="button" class="chip offset" data-val="Other">Other</button>
+      </div>
+      <label for="gymDuration">Duration (minutes)</label>
+      <input type="number" id="gymDuration" min="0" step="5" value="45" inputmode="numeric">
+      <label for="gymNote">Note (optional)</label>
+      <input type="text" id="gymNote" placeholder="e.g. upper body">
+      <div class="form-actions">
+        <button class="btn-save offset" id="saveGym" type="button">Save</button>
+        <button class="btn-cancel" id="cancelGym" type="button">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>This week</h2>
+    <div class="week-stats">
+      <div class="stat load">
+        <div class="num" id="weekUnits">0</div>
+        <div class="label">units logged</div>
+      </div>
+      <div class="stat offset">
+        <div class="num" id="weekGym">0</div>
+        <div class="label">gym sessions</div>
+      </div>
+    </div>
+    <div class="guideline-bar"><div class="fill" id="guidelineFill" style="width:0%"></div></div>
+    <p class="guideline-note" id="guidelineNote">NHS guideline: 14 units/week or less</p>
+  </div>
+
+  <div class="card">
+    <h2>8-week balance</h2>
+    <div id="balanceChart"></div>
+    <div class="chart-legend">
+      <span><i class="dot load"></i>alcohol units</span>
+      <span><i class="dot offset"></i>gym sessions</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Log</h2>
+    <div id="entryList"></div>
+  </div>
+
+  <footer>Stored privately on this device/account only.<br>Not medical advice — for your own tracking alongside your GP.</footer>
+</div>
+
+<script>
+(function(){
+  const STORAGE_KEY = 'ballast-entries';
+  let entries = [];
+
+  function todayISO(){
+    const d = new Date();
+    return d.toISOString().slice(0,10);
+  }
+
+  function fmtDateline(){
+    const d = new Date();
+    const opts = { weekday:'long', day:'numeric', month:'long' };
+    const weekNo = getISOWeek(d);
+    document.getElementById('dateline').textContent = d.toLocaleDateString('en-GB', opts) + ' · Week ' + weekNo;
+  }
+
+  function getMonday(d){
+    d = new Date(d);
+    const day = d.getDay();
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+    const monday = new Date(d);
+    monday.setDate(diff);
+    monday.setHours(0,0,0,0);
+    return monday;
+  }
+
+  function getISOWeek(d){
+    d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    const dayNum = d.getUTCDay() || 7;
+    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
+    return Math.ceil((((d - yearStart) / 86400000) + 1)/7);
+  }
+
+  async function loadEntries(){
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY);
+      entries = raw ? JSON.parse(raw) : [];
+    }catch(e){
+      entries = [];
+    }
+  }
+
+  async function saveEntries(){
+    try{
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+    }catch(e){
+      console.error('Storage error', e);
+      alert('Could not save — your browser storage may be full or blocked (e.g. Private Browsing).');
+    }
+  }
+
+  function uid(){
+    return Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+  }
+
+  // ---- Quick log form toggling ----
+  const drinkForm = document.getElementById('drinkForm');
+  const gymForm = document.getElementById('gymForm');
+
+  document.getElementById('openDrink').addEventListener('click', ()=>{
+    gymForm.classList.remove('open');
+    drinkForm.classList.toggle('open');
+    document.getElementById('drinkDate').value = todayISO();
+  });
+  document.getElementById('openGym').addEventListener('click', ()=>{
+    drinkForm.classList.remove('open');
+    gymForm.classList.toggle('open');
+    document.getElementById('gymDate').value = todayISO();
+  });
+  document.getElementById('cancelDrink').addEventListener('click', ()=> drinkForm.classList.remove('open'));
+  document.getElementById('cancelGym').addEventListener('click', ()=> gymForm.classList.remove('open'));
+
+  document.getElementById('drinkMinus').addEventListener('click', ()=>{
+    const inp = document.getElementById('drinkUnits');
+    inp.value = Math.max(0, (parseFloat(inp.value)||0) - 0.5);
+  });
+  document.getElementById('drinkPlus').addEventListener('click', ()=>{
+    const inp = document.getElementById('drinkUnits');
+    inp.value = (parseFloat(inp.value)||0) + 0.5;
+  });
+
+  let selectedGymType = 'Gym / weights';
+  document.getElementById('gymTypeChips').addEventListener('click', (e)=>{
+    const btn = e.target.closest('.chip');
+    if(!btn) return;
+    document.querySelectorAll('#gymTypeChips .chip').forEach(c=>c.classList.remove('selected'));
+    btn.classList.add('selected');
+    selectedGymType = btn.dataset.val;
+  });
+
+  document.getElementById('saveDrink').addEventListener('click', async ()=>{
+    const date = document.getElementById('drinkDate').value || todayISO();
+    const units = parseFloat(document.getElementById('drinkUnits').value) || 0;
+    const note = document.getElementById('drinkNote').value.trim();
+    entries.push({ id: uid(), type:'alcohol', date, units, note });
+    await saveEntries();
+    document.getElementById('drinkNote').value = '';
+    drinkForm.classList.remove('open');
+    render();
+  });
+
+  document.getElementById('saveGym').addEventListener('click', async ()=>{
+    const date = document.getElementById('gymDate').value || todayISO();
+    const duration = parseFloat(document.getElementById('gymDuration').value) || 0;
+    const note = document.getElementById('gymNote').value.trim();
+    entries.push({ id: uid(), type:'gym', date, activity: selectedGymType, duration, note });
+    await saveEntries();
+    document.getElementById('gymNote').value = '';
+    gymForm.classList.remove('open');
+    render();
+  });
+
+  async function deleteEntry(id){
+    entries = entries.filter(e => e.id !== id);
+    await saveEntries();
+    render();
+  }
+
+  // ---- Rendering ----
+  function render(){
+    renderWeekStats();
+    renderChart();
+    renderList();
+  }
+
+  function renderWeekStats(){
+    const monday = getMonday(new Date());
+    const weekEntries = entries.filter(e => new Date(e.date) >= monday);
+    const units = weekEntries.filter(e=>e.type==='alcohol').reduce((s,e)=>s+e.units,0);
+    const gymCount = weekEntries.filter(e=>e.type==='gym').length;
+
+    const unitsEl = document.getElementById('weekUnits');
+    unitsEl.textContent = (units % 1 === 0 ? units : units.toFixed(1));
+    unitsEl.classList.toggle('over', units > 14);
+    document.getElementById('weekGym').textContent = gymCount;
+
+    const pct = Math.min(100, (units/14)*100);
+    const fill = document.getElementById('guidelineFill');
+    fill.style.width = pct + '%';
+    fill.classList.toggle('over', units > 14);
+
+    const note = document.getElementById('guidelineNote');
+    if(units > 14){
+      note.textContent = 'Over the NHS guideline of 14 units/week by ' + (units-14).toFixed(1);
+    } else {
+      note.textContent = (14-units).toFixed(1) + ' units under the NHS guideline of 14/week';
+    }
+  }
+
+  function renderChart(){
+    const container = document.getElementById('balanceChart');
+    const weeks = [];
+    const thisMonday = getMonday(new Date());
+    for(let i=7;i>=0;i--){
+      const start = new Date(thisMonday);
+      start.setDate(start.getDate() - i*7);
+      const end = new Date(start);
+      end.setDate(end.getDate()+7);
+      const inWeek = entries.filter(e=>{
+        const d = new Date(e.date);
+        return d >= start && d < end;
+      });
+      const units = inWeek.filter(e=>e.type==='alcohol').reduce((s,e)=>s+e.units,0);
+      const gym = inWeek.filter(e=>e.type==='gym').length;
+      weeks.push({ label: 'W' + getISOWeek(start), units, gym });
+    }
+    const maxUnits = Math.max(14, ...weeks.map(w=>w.units));
+    const maxGym = Math.max(4, ...weeks.map(w=>w.gym));
+
+    container.innerHTML = weeks.map(w=>{
+      const loadPct = (w.units/maxUnits)*100;
+      const offsetPct = (w.gym/maxGym)*100;
+      return `<div class="balance-row">
+        <div class="wk-label">${w.label}</div>
+        <div class="val load-val">${w.units>0 ? w.units : ''}</div>
+        <div class="bar-load" style="width:${loadPct}%"></div>
+        <div class="center-line"></div>
+        <div class="bar-offset" style="width:${offsetPct}%"></div>
+      </div>`;
+    }).join('');
+  }
+
+  function renderList(){
+    const list = document.getElementById('entryList');
+    if(entries.length === 0){
+      list.innerHTML = `<div class="empty"><span class="big">Nothing logged yet</span>Tap Drink or Gym session above to start your ledger.</div>`;
+      return;
+    }
+    const sorted = [...entries].sort((a,b)=> new Date(b.date) - new Date(a.date) || b.id.localeCompare(a.id));
+    list.innerHTML = sorted.slice(0,40).map(e=>{
+      const d = new Date(e.date);
+      const dateStr = d.toLocaleDateString('en-GB', { weekday:'short', day:'numeric', month:'short' });
+      if(e.type === 'alcohol'){
+        return `<div class="entry">
+          <div class="marker load"></div>
+          <div class="body">
+            <div class="title">${e.units} unit${e.units==1?'':'s'}${e.note ? ' — ' + escapeHtml(e.note) : ''}</div>
+            <div class="meta">${dateStr}</div>
+          </div>
+          <button class="del" data-id="${e.id}" aria-label="Delete entry">×</button>
+        </div>`;
+      } else {
+        return `<div class="entry">
+          <div class="marker offset"></div>
+          <div class="body">
+            <div class="title">${escapeHtml(e.activity)} · ${e.duration}min${e.note ? ' — ' + escapeHtml(e.note) : ''}</div>
+            <div class="meta">${dateStr}</div>
+          </div>
+          <button class="del" data-id="${e.id}" aria-label="Delete entry">×</button>
+        </div>`;
+      }
+    }).join('');
+
+    list.querySelectorAll('.del').forEach(btn=>{
+      btn.addEventListener('click', ()=> deleteEntry(btn.dataset.id));
+    });
+  }
+
+  function escapeHtml(str){
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  // ---- Init ----
+  (async function init(){
+    fmtDateline();
+    await loadEntries();
+    render();
+  })();
+})();
+</script>
+</body>
+</html>
